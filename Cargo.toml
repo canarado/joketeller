@@ -2,6 +2,11 @@
 name = "joketeller"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+description = "Simple API client for sv443's jokeapi"
+homepage = "https://github.com/canarado/joketeller"
+repository = "https://github.com/canarado/joketeller"
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
