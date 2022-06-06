@@ -1,12 +1,30 @@
 #![allow(unused_imports)]
 
+//! # joketeller
+//! joketeller is a simple lib to make requests to the [jokeapi](https://jokeapi.dev/) written by [sv443](https://sv443.net).
+//! 
+//! A simple use case may to get a random joke from the API with no filters or cases
+//! ```rust
+//! use joketeller::Joker;
+//! 
+//! let joker_client: Joker = Joker::new();
+//! 
+//! let joke = joker_client.get_joke().unwrap();
+//! ```
+//! 
+//! Get started with the [client](crate::Joker).
+
 use std::string::ToString;
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::fmt::Display;
+use ureq;
+pub use serde_json;
 
+/// The base URL for the jokeapi
 pub const BASE_URL: &'static str = "https://v2.jokeapi.dev/joke/";
 
+/// The main client struct that connects to the jokeapi
 #[derive(Debug, Clone, Hash, PartialEq)]
 pub struct Joker {
     categories: Vec<Category>,
@@ -18,9 +36,15 @@ pub struct Joker {
     id_range: Vec<u32>,
     amount: Option<u32>,
     safe_mode: Option<bool>,
+    authorization_key: Option<String>,
 }
-
+/// The implementation for the jokeapi client
 impl Joker {
+    /// Basic Usage:
+    /// 
+    /// ```rust
+    /// let joker_client: Joker = Joker::new();
+    /// ```
     pub fn new() -> Joker {
         Joker {
             categories: Vec::new(),
@@ -32,23 +56,50 @@ impl Joker {
             id_range: Vec::new(),
             amount: None,
             safe_mode: None,
+            authorization_key: None,
         }
     }
 
+    /// Basic Usage:
+    /// 
+    /// ```rust
+    /// use joketeller::Category;
+    /// 
+    /// 
+    /// joker_client.add_categories(&mut vec![Category::Any, Category::Programming]);
+    /// ```
+    /// A list of categories can be found [here](crate::Category)
     pub fn add_categories(&mut self, categories: &mut Vec<Category>) -> &mut Self {
         dedup(categories);
-
+        
         self.categories.append(categories);
 
         self
     }
 
+    /// Basic Usage:
+    /// 
+    /// ```rust
+    /// use joketeller::Language;
+    /// 
+    /// // english is the default, so only needs set if not english
+    /// joker_client.set_language(Language::German);
+    /// ```
+    /// A list of languages can be found [here](crate::Language)
     pub fn set_language(&mut self, language: Language) -> &mut Self {
         self.language = Some(language);
 
         self
     }
 
+    /// Basic Usage:
+    /// 
+    /// ```rust
+    /// use joketeller::BlacklistFlag;
+    /// 
+    /// joker_client.add_blacklist_flags(&mut vec![BlacklistFlag::Political]);
+    /// ```
+    /// A list of flags can be found [here](crate::BlacklistFlag)
     pub fn add_blacklist_flags(&mut self, flags: &mut Vec<BlacklistFlag>) -> &mut Self {
         dedup(flags);
 
@@ -57,24 +108,54 @@ impl Joker {
         self
     }
 
+    /// This method is going to most likely going to be deprecated in favor of only support JSON
+    /// as it seems to be the strongest serialized format in the Rust atm.
+    /// 
+    /// Basic Usage:
+    /// 
+    /// ```rust
+    /// use joketeller::ResponseFormat;
+    /// 
+    /// joker_client.set_format(ResponseFormat::Xml)
+    /// ```
+    /// Right now, only json is fully supported, but a list of formats can be found [here](crate::ResponseFormat) nonetheless
     pub fn set_format(&mut self, format: ResponseFormat) -> &mut Self {
         self.format = Some(format);
 
         self
     }
 
+    /// Basic Usage:
+    /// 
+    /// ```rust
+    /// use joketeller::JokeType;
+    /// 
+    /// joker_client.set_joke_type(JokeType::Single);
+    /// ```
+    /// A list of joke types can be found [here](crate::JokeType)
     pub fn set_joke_type(&mut self, joketype: JokeType) -> &mut Self {
         self.joke_type = Some(joketype);
 
         self
     }
 
+    /// Basic Usage:
+    /// 
+    /// ```rust
+    /// joker_client.set_search_string("string to search for");
+    /// ```
+    /// The search string is a word or phrase you want to be in the joke, and the API will try to return a result to you if it has a joke with that phrase.
     pub fn set_search_string(&mut self, searchstring: &'static str) -> &mut Self {
         self.search_string = Some(String::from(searchstring));
 
         self
     }
 
+    /// Basic Usage:
+    /// 
+    /// ```rust
+    /// joker_client.set_id_range(2, 5);
+    /// ```
     pub fn set_id_range(&mut self, start: u32, end: u32) -> &mut Self {
         self.id_range.push(start);
         self.id_range.push(end);
@@ -82,18 +163,48 @@ impl Joker {
         self
     }
 
+    /// Basic Usage:
+    /// 
+    /// ```rust
+    /// // get 5 jokes
+    /// joker_client.set_amount(5);
+    /// ```
     pub fn set_amount(&mut self, amount: u32) -> &mut Self {
         self.amount = Some(amount);
 
         self
     }
 
+    /// Basic Usage:
+    /// 
+    /// ```rust
+    /// joker_client.safe_mode(true);
+    /// ```
+    /// This will turn off some categories such as racist or dark
     pub fn safe_mode(&mut self, s: bool) -> &mut Self {
         self.safe_mode = Some(s);
 
         self
     }
 
+    /// Basic Usage:
+    /// 
+    /// ```rust
+    /// joker_client.set_authorization("auth-key");
+    /// ```
+    pub fn set_authorization(&mut self, authorization_key: &'static str) -> &mut Self {
+        self.authorization_key = Some(String::from(authorization_key));
+
+        self
+    }
+
+    /// This is a mostly internal function, and not needed unless you want to implement your own API call
+    /// 
+    /// Basic Usage:
+    /// 
+    /// ```rust
+    /// let uri_string = joker_client.build_url().unwrap();
+    /// ```
     pub fn build_url(&mut self) -> Result<String, &'static str> {
         let mut url: String = BASE_URL.to_string();
         
@@ -111,10 +222,10 @@ impl Joker {
         for item in self.categories.iter() {
             temp.push(item.to_string());
         }
-
-        // push our final Category string to the url_parameters and clear our temporary vector, we will
-        // be doing this often for vectorized items and is only commented here for reference.
-        url_params.push(temp.join(","));
+        
+        // // push our final Category string to the url_parameters and clear our temporary vector, we will
+        // // be doing this often for vectorized items and is only commented here for reference.
+        let cat_string = temp.join(",");
         temp.clear();
 
         // Language
@@ -128,13 +239,15 @@ impl Joker {
         // Blacklist Flags
         if !self.blacklist_flags.is_empty() {
 
-            temp.push(String::from("blacklistFlags="));
-
             for item in self.blacklist_flags.iter() {
                 temp.push(item.to_string());
             }
 
-            url_params.push(temp.join(","));
+            let mut joined = temp.join(",");
+            joined.insert_str(0, "blacklistFlags=");
+
+            url_params.push(joined);
+
             temp.clear();
         }
 
@@ -185,10 +298,49 @@ impl Joker {
             url_params.push(String::from("safe-mode"))
         }
 
-        // Join Parameters with the URL Query Delimiter and add the query to the API url
-        let final_params = url_params.join("?");
-        url.push_str(&final_params);
+        // creating final string to append to the url
+        if url_params.is_empty() {
+            url.push_str(&cat_string)
+        } else {
+            let mut final_params = url_params.join("&");
+
+            final_params.insert_str(0, &format!("{}?", cat_string));
+            
+            url.push_str(&final_params);
+        }
+
         Ok(url)
+    }
+
+    /// Basic Usage:
+    /// 
+    /// ```rust
+    /// let joke = joker_client.get_joke().unwrap();
+    /// ```
+    pub fn get_joke(&mut self) -> Result<serde_json::Value, String> {
+        let url_string: String = self.build_url().unwrap();
+
+        let req;
+
+        if self.authorization_key.is_some() {
+            req = ureq::get(&url_string).set("Authorization", &self.authorization_key.as_ref().unwrap());
+        } else {
+            req = ureq::get(&url_string);
+        }
+
+        match req.call() {
+            Ok(response) => {
+                let json: serde_json::Value = response.into_json().unwrap();
+
+                Ok(json)
+            },
+            Err(ureq::Error::Status(code, response)) => {
+                Err(format!("{} {:?}", code, response))
+            },
+            Err(_) => {
+                Err(String::from("Transport Error"))
+            }
+        }
     }
 }
 
@@ -321,7 +473,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn working() {
+    fn builder_working() {
         let mut joker = Joker::new();
 
         assert_eq!(joker.build_url().unwrap(), "https://v2.jokeapi.dev/joke/Any")
@@ -357,5 +509,36 @@ mod tests {
         joker1.set_id_range(2, 5);
 
         assert_eq!(joker1.build_url().unwrap(), "https://v2.jokeapi.dev/joke/Any?idRange=2-5")
+    }
+
+    #[test]
+    fn getjoke() {
+        let mut joker = Joker::new();
+
+        joker
+            .add_categories(&mut vec![Category::Programming, Category::Pun])
+            .set_amount(3)
+            .add_blacklist_flags(&mut vec![BlacklistFlag::Political, BlacklistFlag::Racist]);
+
+        println!("{}", joker.build_url().unwrap());
+
+        let joke = joker.get_joke().unwrap();
+
+        println!("GETJOKE\n\n{:?}\n\nEND GET JOKE\n", joke);
+    }
+
+    #[test]
+    pub fn auth() {
+        let mut joker = Joker::new();
+
+        joker
+            .add_categories(&mut vec![Category::Programming, Category::Pun])
+            .set_amount(3)
+            .set_authorization("testkey")
+            .add_blacklist_flags(&mut vec![BlacklistFlag::Political, BlacklistFlag::Racist]);
+
+        let joke = joker.get_joke().unwrap();
+
+        println!("{:?}", joke);
     }
 }
