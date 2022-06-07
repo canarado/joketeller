@@ -4,7 +4,7 @@ Current Version: `0.1.0`
 
 ```
 [dependencies]
-joketeller = { git = "https://www.github.com/canarado/joketeller", branch = "stable" }
+joketeller = "0.1.0"
 ```
 
 View the [Sv443 API here](https://jokeapi.dev/).
@@ -32,4 +32,4 @@ let built_api_url = joker_instance.build_url().unwrap();
 ```
 
 ## Documentation
-The docs are always being updated, current docs can be found [here](#).
+The docs are always being updated, current docs can be found [here](https://docs.rs/joketeller/latest/joketeller/).
