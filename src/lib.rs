@@ -396,7 +396,7 @@ impl Joker {
         }
     }
 
-    /// Usage is the same as the [submit](crate::submit_joke) function listed above, please refer to it.
+    /// Usage is the same as the [submit](crate::Joker::submit_joke) function listed above, please refer to it.
     /// 
     /// Only difference between the two is that this function does not write anything to the API and is simply a test for verification purposes, and to avoid rate-limits for submission verification
     pub fn submit_joke_dryrun(json: serde_json::Value) -> Result<serde_json::Value, serde_json::Value> {
