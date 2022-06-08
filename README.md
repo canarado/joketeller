@@ -1,10 +1,10 @@
 # JokeTeller - an API client for Sv443's JokeAPI
 
-Current Version: `0.1.0`
+Current Version: `0.2.1`
 
 ```
 [dependencies]
-joketeller = "0.1.0"
+joketeller = "0.2.1"
 ```
 
 View the [Sv443 API here](https://jokeapi.dev/).
