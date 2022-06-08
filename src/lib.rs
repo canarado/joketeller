@@ -7,7 +7,7 @@
 //! ```rust
 //! use joketeller::Joker;
 //! 
-//! let joker_client: Joker = Joker::new();
+//! let mut joker_client: Joker = Joker::new();
 //! 
 //! let joke = joker_client.get_joke().unwrap();
 //! ```
@@ -22,7 +22,7 @@ use ureq;
 pub use serde_json;
 
 /// The base URL for the jokeapi
-pub const BASE_URL: &'static str = "https://v2.jokeapi.dev/joke/";
+pub const BASE_URL: &'static str = "https://v2.jokeapi.dev/";
 
 /// The main client struct that connects to the jokeapi
 #[derive(Debug, Clone, Hash, PartialEq)]
@@ -207,6 +207,7 @@ impl Joker {
     /// ```
     pub fn build_url(&mut self) -> Result<String, &'static str> {
         let mut url: String = BASE_URL.to_string();
+        url.push_str("joke/");
         
         let mut url_params: Vec<String> = Vec::new();
 
@@ -317,7 +318,7 @@ impl Joker {
     /// ```rust
     /// let joke = joker_client.get_joke().unwrap();
     /// ```
-    pub fn get_joke(&mut self) -> Result<serde_json::Value, String> {
+    pub fn get_joke(&mut self) -> Result<serde_json::Value, serde_json::Value> {
         let url_string: String = self.build_url().unwrap();
 
         let req;
@@ -334,11 +335,85 @@ impl Joker {
 
                 Ok(json)
             },
-            Err(ureq::Error::Status(code, response)) => {
-                Err(format!("{} {:?}", code, response))
+            Err(ureq::Error::Status(_code, response)) => {
+                Err(response.into_json().unwrap())
             },
             Err(_) => {
-                Err(String::from("Transport Error"))
+                Err(serde_json::json!({ "err": "Transport Error"}))
+            }
+        }
+    }
+
+    /// See the [official docs](https://jokeapi.dev/#submit-endpoint) to verify the format for submissions
+    ///
+    /// Basic Usage:
+    /// 
+    /// ```rust
+    /// let joke = serde_json::json!({
+    ///                     "formatVersion": 3,
+    ///                     "category": "Misc",
+    ///                     "type": "single",
+    ///                     "joke": "A horse walks into a bar...",
+    ///                     "flags": {
+    ///                         "nsfw": true,
+    ///                         "religious": false,
+    ///                         "political": true,
+    ///                         "racist": false,
+    ///                         "sexist": false,
+    ///                         "explicit": false
+    ///                     },
+    ///                     "lang": "en"
+    /// });
+    /// 
+    /// match Joker::submit_joke(joke) {
+    ///     Ok(response) => {
+    ///         ...
+    ///     },
+    ///     Err(response) => {
+    ///         ...
+    ///     },
+    ///     Err(_) => {
+    ///         ...
+    ///     }
+    /// }
+    /// ```
+    pub fn submit_joke(json: serde_json::Value) -> Result<serde_json::Value, serde_json::Value> {
+        let mut submission_url = BASE_URL.to_string();
+        submission_url.push_str("submit");
+
+        match ureq::post(&submission_url).send_json(json) {
+            Ok(response) => {
+                let json: serde_json::Value = response.into_json().unwrap();
+
+                Ok(json)
+            },
+            Err(ureq::Error::Status(_code, response)) => {
+                Err(response.into_json().unwrap())
+            },
+            Err(_) => {
+                Err(serde_json::json!({ "err": "Transport Error" }))
+            }
+        }
+    }
+
+    /// Usage is the same as the [submit](crate::submit_joke) function listed above, please refer to it.
+    /// 
+    /// Only difference between the two is that this function does not write anything to the API and is simply a test for verification purposes, and to avoid rate-limits for submission verification
+    pub fn submit_joke_dryrun(json: serde_json::Value) -> Result<serde_json::Value, serde_json::Value> {
+        let mut submission_url = BASE_URL.to_string();
+        submission_url.push_str("submit?dry-run");
+
+        match ureq::post(&submission_url).send_json(json) {
+            Ok(response) => {
+                let json: serde_json::Value = response.into_json().unwrap();
+
+                Ok(json)
+            },
+            Err(ureq::Error::Status(_code, response)) => {
+                Err(response.into_json().unwrap())
+            },
+            Err(_) => {
+                Err(serde_json::json!({ "err": "Transport Error" }))
             }
         }
     }
@@ -540,5 +615,26 @@ mod tests {
         let joke = joker.get_joke().unwrap();
 
         println!("{:?}", joke);
+    }
+
+    #[test]
+    pub fn submit_dryrun() {
+        let submission = Joker::submit_joke_dryrun(serde_json::json!({
+                "formatVersion": 3,
+                "category": "Misc",
+                "type": "single",
+                "joke": "A horse walks into a bar...",
+                "flags": {
+                    "nsfw": true,
+                    "religious": false,
+                    "political": true,
+                    "racist": false,
+                    "sexist": false,
+                    "explicit": false
+                },
+                "lang": "en"
+        }));
+
+        println!("{:?}", submission);
     }
 }
