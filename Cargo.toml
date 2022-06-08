@@ -1,6 +1,6 @@
 [package]
 name = "joketeller"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 license = "MIT"
 description = "Simple API client for sv443's jokeapi"
@@ -9,6 +9,7 @@ repository = "https://github.com/canarado/joketeller"
 readme = "README.md"
 authors = ["Adam K <canarado@canarado.xyz>"]
 exclude = ["keys.env"]
+keywords = ["jokes", "joke", "sv443", "api"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
